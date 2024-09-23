@@ -1,0 +1,1 @@
+# plugins-customer-reviews-collector-for-woocommerce
