@@ -223,6 +223,7 @@ return [
 'support-language',
 'exclude-emails',
 'activation-redirect',
+'preview',
 ];
 }
 public function get_default_settings()

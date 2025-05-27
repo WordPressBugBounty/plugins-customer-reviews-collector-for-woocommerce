@@ -22,7 +22,6 @@ wp_mail('support@trustindex.io', $subject, $message, [ 'From: '. $email, 'Conten
 exit;
 }
 ?>
-<h1 class="ti-header-title"><?php echo __('Feature request', 'customer-reviews-collector-for-woocommerce'); ?></h1>
 
 <div class="plugin-head"><?php echo __('Missing a feature?', 'customer-reviews-collector-for-woocommerce'); ?></div>
 <p class="size-16">

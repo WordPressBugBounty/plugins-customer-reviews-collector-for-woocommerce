@@ -2,10 +2,8 @@
 Contributors: trustindex
 Donate link: https://www.trustindex.io/prices/
 Tags: collect, Woocommerce reviews, customer reviews, Google reviews, review plugin
-Requires at least: 3.0.1
-Tested up to: 6.4.2
-WC tested up to: 8.0.2Requires PHP: 5.2
-Stable tag: 4.5
+Tested up to: 6.8
+WC tested up to: 8.0.2Stable tag: 4.5.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 Plugin Name: Customer Reviews Collector for WooCommerce
@@ -14,7 +12,7 @@ Plugin URI: https://wordpress.org/plugins/customer-reviews-collector-for-woocomm
 Author: Trustindex.io <support@trustindex.io>
 Author URI: https://www.trustindex.io/
 Text Domain: customer-reviews-collector-for-woocommerce
-Version: 4.5
+Version: 4.5.1
 
 Collect reviews on Google, Facebook, Yelp, Trustindex and other platforms automatically, with the help of our system.
 
@@ -103,11 +101,12 @@ If you have any issues at all setting up the  WordPress Plugin for your business
 We offer 24/7 email support in English.
 
 We recommend the following order when searching for answers:
-1. Plugin FAQ here at the bottom - if you don’t already know why it’s worth displaying 2. You can find more info and Troubleshooting in the plugin's admin dashboard after install.
+1. Plugin FAQ here at the bottom - if you don’t already know why it’s worth displaying 
+2. You can find more info and Troubleshooting in the plugin's admin dashboard after install.
 3. [Trustindex FAQ](https://www.trustindex.io/frequently-asked-questions/)
 4. Check topics or ask a new question here: [Support Forum](https://wordpress.org/support/plugin/customer-reviews-collector-for-woocommerce/)
 5. Join our Community on Facebook: https://www.facebook.com/groups/990874785532977
-5. If you still can't find the answer, feel free to email us: support@trustindex.io
+6. If you still can't find the answer, feel free to email us: support@trustindex.io
 
 To find out more about who we are and what we do, here are some useful links:
 

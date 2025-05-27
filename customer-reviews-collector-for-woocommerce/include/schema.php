@@ -14,7 +14,7 @@ CREATE TABLE ". $this->get_tablename('schedule_list') ." (
  `clicked_at` DATETIME NULL,
  `feedback` TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_520_ci NULL,
  `feedback_at` DATETIME NULL,
- PRIMARY KEY (`id`)
+ PRIMARY KEY  (`id`)
 )
 ",
 'unsubscribes' => "
@@ -22,7 +22,7 @@ CREATE TABLE ". $this->get_tablename('unsubscribes') ." (
  `id` BIGINT(20) NOT NULL AUTO_INCREMENT,
  `email` VARCHAR(255) NOT NULL,
  `created_at` DATETIME,
- PRIMARY KEY (`id`)
+ PRIMARY KEY  (`id`)
 )
 "
 ];
