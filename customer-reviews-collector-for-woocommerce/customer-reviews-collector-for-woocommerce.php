@@ -4,7 +4,7 @@ Plugin Name: Customer Reviews Collector for WooCommerce
 Plugin URI: https://wordpress.org/plugins/customer-reviews-collector-for-woocommerce/
 Description: Collect reviews on Google, Facebook, Yelp, Trustindex and other platforms automatically, with the help of our system.
 Tags: collect, Woocommerce reviews, customer reviews, Google reviews, review plugin
-Version: 4.6
+Version: 4.6.1
 Requires at least: 6.2
 Requires PHP: 7.0
 Author: Trustindex.io <support@trustindex.io>
@@ -25,7 +25,7 @@ Copyright 2019 Trustindex Kft (email: support@trustindex.io)
 */
 defined( 'ABSPATH' ) or die( 'No script kiddies please!' );
 require_once plugin_dir_path( __FILE__ ) . 'trustindex-collector-plugin.class.php';
-$trustindex_collector = new TrustindexCollectorPlugin(__FILE__, "4.6");
+$trustindex_collector = new TrustindexCollectorPlugin(__FILE__, "4.6.1");
 register_activation_hook(__FILE__, [ $trustindex_collector, 'activate' ]);
 register_deactivation_hook(__FILE__, [ $trustindex_collector, 'deactivate' ]);
 add_action('plugins_loaded', [ $trustindex_collector, 'load' ]);
@@ -84,7 +84,7 @@ if (!isset($trustindex_collector) || is_null($trustindex_collector)) {
 if (!class_exists('TrustindexCollectorPlugin')) {
 require_once plugin_dir_path( __FILE__ ) . 'trustindex-collector-plugin.class.php';
 }
-$trustindex_collector = new TrustindexCollectorPlugin(__FILE__, "4.6");
+$trustindex_collector = new TrustindexCollectorPlugin(__FILE__, "4.6.1");
 }
 do_action($trustindex_collector->get_schedule_cronname());
 if (!wp_next_scheduled($trustindex_collector->get_schedule_cronname())) {
@@ -99,21 +99,21 @@ return false;
 }
 $schedules = $trustindex_collector->get_pending_schedules();
 foreach ($schedules as $s) {
-$customerFullName = "";
+$customerFullName = $s->name;
+try {
 if ($order = new WC_Order($s->order_id)) {
 $orderData = $order->get_data();
 $customerFullName = trim($orderData['billing']['first_name'] .' '. $orderData['billing']['last_name']);
 }
-if (!$customerFullName) {
-if ($customer = new WC_Customer(get_post_meta($s->order_id, '_customer_user', true))) {
+if (!$customerFullName && ($customer = new WC_Customer(get_post_meta($s->order_id, '_customer_user', true)))) {
 $customerFullName = $customer->get_display_name();
-}
 }
 if (!$s->hash) {
 $s->hash = md5($s->id . '-' . $s->created_at);
 $wpdb->update($trustindex_collector->get_tablename('schedule_list'), [ 'hash' => $s->hash ], [ 'id' => $s->id ]);
 }
 $trustindex_collector->sendMail($s->email, [ 'customer_full_name' => $customerFullName ], $s->hash);
+} catch (Exception $e) {}
 $trustindex_collector->register_schedule_sent($s->email, $s->order_id, $s->id);
 }
 });

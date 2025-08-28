@@ -3,7 +3,7 @@ Contributors: trustindex
 Donate link: https://www.trustindex.io/prices/
 Tags: collect, Woocommerce reviews, customer reviews, Google reviews, review plugin
 Tested up to: 6.8
-WC tested up to: 8.0.2Stable tag: 4.6
+WC tested up to: 8.0.2Stable tag: 4.6.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 Plugin Name: Customer Reviews Collector for WooCommerce
@@ -12,7 +12,7 @@ Plugin URI: https://wordpress.org/plugins/customer-reviews-collector-for-woocomm
 Author: Trustindex.io <support@trustindex.io>
 Author URI: https://www.trustindex.io/
 Text Domain: customer-reviews-collector-for-woocommerce
-Version: 4.6
+Version: 4.6.1
 
 Collect reviews on Google, Facebook, Yelp, Trustindex and other platforms automatically, with the help of our system.
 
