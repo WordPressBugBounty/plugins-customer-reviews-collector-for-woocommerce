@@ -7,7 +7,7 @@ wp_enqueue_script('trustindex-js', 'https://cdn.trustindex.io/loader.js', [], fa
 <div class="card-header card-header-lg"><?php echo __('Skyrocket Your Sales with Customer Reviews', 'customer-reviews-collector-for-woocommerce'); ?></div>
 <div class="card-body">
 <p class="size-18"><?php
-echo sprintf(__('%s+ businesses use Trustindex to collect and embed reviews easily.', 'customer-reviews-collector-for-woocommerce'), '600.000')
+echo sprintf(__('%s+ businesses use Trustindex to collect and embed reviews easily.', 'customer-reviews-collector-for-woocommerce'), '700.000')
 .' '.
 __('Increase SEO, trust and sales using customer reviews.', 'customer-reviews-collector-for-woocommerce');
 ?></p>

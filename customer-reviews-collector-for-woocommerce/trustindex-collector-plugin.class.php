@@ -462,7 +462,7 @@ public function get_pending_schedules()
 {
 global $wpdb;
 require_once(ABSPATH . 'wp-admin' . DIRECTORY_SEPARATOR . 'includes' . DIRECTORY_SEPARATOR . 'upgrade.php');
-return $wpdb->get_results('SELECT id, email, order_id, name, hash, created_at FROM `'. $this->get_tablename('schedule_list') .'` WHERE `timestamp` <= '. time() .' AND sent = 0 LIMIT 20');
+return $wpdb->get_results('SELECT id, email, order_id, name, hash, created_at FROM `'. $this->get_tablename('schedule_list') .'` WHERE `timestamp` <= '. time() .' AND sent = 0 AND `timestamp` > 0 LIMIT 20');
 }
 public function get_schedules($page = 1, $query = "")
 {

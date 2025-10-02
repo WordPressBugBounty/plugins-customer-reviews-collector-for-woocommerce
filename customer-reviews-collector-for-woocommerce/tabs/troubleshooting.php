@@ -24,7 +24,7 @@ exit;
 }
 $yesIcon = '<span class="dashicons dashicons-yes-alt"></span>';
 $noIcon = '<span class="dashicons dashicons-dismiss"></span>';
-$pluginUpdated = ($pluginManagerInstance->get_plugin_current_version() <= "4.6.1");
+$pluginUpdated = ($pluginManagerInstance->get_plugin_current_version() <= "4.6.2");
 ?>
 <div class="plugin-head"><?php echo __('Troubleshooting', 'customer-reviews-collector-for-woocommerce'); ?></div>
 <div class="plugin-body">
