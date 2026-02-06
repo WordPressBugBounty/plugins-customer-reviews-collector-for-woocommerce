@@ -4,7 +4,7 @@ Plugin Name: Customer Reviews Collector for WooCommerce
 Plugin URI: https://wordpress.org/plugins/customer-reviews-collector-for-woocommerce/
 Description: Collect reviews on Google, Facebook, Yelp, Trustindex and other platforms automatically, with the help of our system.
 Tags: collect, Woocommerce reviews, customer reviews, Google reviews, review plugin
-Version: 4.6.2
+Version: 4.7.3
 Requires at least: 6.2
 Requires PHP: 7.0
 Author: Trustindex.io <support@trustindex.io>
@@ -25,7 +25,7 @@ Copyright 2019 Trustindex Kft (email: support@trustindex.io)
 */
 defined( 'ABSPATH' ) or die( 'No script kiddies please!' );
 require_once plugin_dir_path( __FILE__ ) . 'trustindex-collector-plugin.class.php';
-$trustindex_collector = new TrustindexCollectorPlugin(__FILE__, "4.6.2");
+$trustindex_collector = new TrustindexCollectorPlugin(__FILE__, "4.7.3");
 register_activation_hook(__FILE__, [ $trustindex_collector, 'activate' ]);
 register_deactivation_hook(__FILE__, [ $trustindex_collector, 'deactivate' ]);
 add_action('plugins_loaded', [ $trustindex_collector, 'load' ]);
@@ -54,7 +54,8 @@ if ($email && !$trustindex_collector->is_email_unsubscribed($email) && !$trustin
 $tableName = $trustindex_collector->get_tablename('schedule_list');
 $savedInvites = 0;
 if ($frequency) {
-$wpdb->get_results("SELECT id FROM `$tableName` WHERE `email` LIKE '$email' AND TIMESTAMPDIFF(DAY, created_at, NOW()) <= ". 30 * $frequency);
+// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+$wpdb->get_results($wpdb->prepare('SELECT id FROM %i WHERE `email` LIKE %s AND TIMESTAMPDIFF(DAY, created_at, NOW()) <= %s', $tableName, $email, 30 * $frequency));
 $savedInvites = $wpdb->num_rows;
 }
 if (!$savedInvites) {
@@ -62,9 +63,9 @@ $triggerDelay = (int)get_option($trustindex_collector->get_option_name('trigger-
 $timestamp = time() + ($triggerDelay * 86400);
 if (!$triggerDelay) {
 $trustindex_collector->sendMail($email, [ 'customer_full_name' => $customerFullName ], $trustindex_collector->register_schedule_sent($email, $id, null, $customerFullName));
-}
-else {
-$date = date('Y-m-d H:i:s');
+} else {
+$date = gmdate('Y-m-d H:i:s');
+// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 $wpdb->insert($tableName, [
 'email' => $email,
 'name' => $customerFullName,
@@ -72,19 +73,20 @@ $wpdb->insert($tableName, [
 'timestamp' => $timestamp,
 'created_at' => $date
 ]);
+// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 $wpdb->update($tableName, [ 'hash' => md5($wpdb->insert_id . '-' . $date) ], [ 'id' => $wpdb->insert_id ]);
 }
 }
 }
 }
 });
-add_action('init', function() {
+add_action('wp_loaded', function() {
 global $trustindex_collector;
 if (!isset($trustindex_collector) || is_null($trustindex_collector)) {
 if (!class_exists('TrustindexCollectorPlugin')) {
 require_once plugin_dir_path( __FILE__ ) . 'trustindex-collector-plugin.class.php';
 }
-$trustindex_collector = new TrustindexCollectorPlugin(__FILE__, "4.6.2");
+$trustindex_collector = new TrustindexCollectorPlugin(__FILE__, "4.7.3");
 }
 do_action($trustindex_collector->get_schedule_cronname());
 if (!wp_next_scheduled($trustindex_collector->get_schedule_cronname())) {
@@ -110,9 +112,18 @@ $customerFullName = $customer->get_display_name();
 }
 if (!$s->hash) {
 $s->hash = md5($s->id . '-' . $s->created_at);
+// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 $wpdb->update($trustindex_collector->get_tablename('schedule_list'), [ 'hash' => $s->hash ], [ 'id' => $s->id ]);
 }
-$trustindex_collector->sendMail($s->email, [ 'customer_full_name' => $customerFullName ], $s->hash);
+$isSentAlready = false;
+if ($s->timestamp < time() - (86400 * 30)) {
+// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+$wpdb->get_results($wpdb->prepare('SELECT id AS num FROM %i WHERE `email` LIKE %s AND sent = %d LIMIT 1', $trustindex_collector->get_tablename('schedule_list'), $s->email, 1));
+$isSentAlready = $wpdb->num_rows > 0;
+}
+if (!$isSentAlready) {
+$trustindex_collector->sendMail($s->email, ['customer_full_name' => $customerFullName], $s->hash);
+}
 } catch (Exception $e) {}
 $trustindex_collector->register_schedule_sent($s->email, $s->order_id, $s->id);
 }
@@ -123,33 +134,34 @@ add_filter('plugin_action_links', [ $trustindex_collector, 'add_plugin_action_li
 add_filter('plugin_row_meta', [ $trustindex_collector, 'add_plugin_meta_links' ], 10, 2);
 add_action('init', [ $trustindex_collector, 'output_buffer' ]);
 add_action('admin_enqueue_scripts', [ $trustindex_collector, 'add_scripts' ]);
-add_filter('script_loader_tag', function($tag, $handle) {
-if (strpos($tag, 'trustindex.io/loader.js') !== false && strpos($tag, 'defer async') === false) {
-$tag = str_replace(' src', ' defer async src', $tag );
-}
-return $tag;
-}, 10, 2);
 add_action('wp_ajax_'. $trustindex_collector->get_email_template_action(), function() {
 global $trustindex_collector;
+check_admin_referer('ti-email-preview');
 if (!isset($_POST['email-text']) || !isset($_POST['email-footer-text']) || !isset($_POST['platform-url'])) {
 global $wp_query;
 $wp_query->set_404();
 status_header(404);
 exit;
 }
-echo $trustindex_collector->getEmailHtml(stripslashes($_POST['email-text']), stripslashes($_POST['email-footer-text']), $_POST);
+// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+echo wp_kses($trustindex_collector->getEmailHtml(wp_unslash($_POST['email-text']), wp_unslash($_POST['email-footer-text']), $_POST), TrustindexCollectorPlugin::$allowedEmailHtmlTags);
 exit;
 });
 add_action('parse_request', function() {
 global $trustindex_collector;
 global $wpdb;
+// phpcs:ignore WordPress.Security.NonceVerification.Recommended
 $rating = isset($_GET['rating']) ? (int)$_GET['rating'] : 3;
 $reviewLink = $trustindex_collector->get_random_platform_url();
 $tableName = $trustindex_collector->get_tablename('schedule_list');
+// phpcs:ignore WordPress.Security.NonceVerification.Recommended
 if (isset($_GET[ $trustindex_collector->get_response_key() ])) {
-$hash = sanitize_text_field($_GET[ $trustindex_collector->get_response_key() ]);
-$res = $wpdb->get_results('SELECT * FROM `'. $tableName .'` WHERE hash LIKE "'. $hash .'" LIMIT 1', ARRAY_A);
-$mode = sanitize_text_field(isset($_GET['mode']) ? $_GET['mode'] : 'clicked');
+// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+$hash = sanitize_text_field(wp_unslash($_GET[ $trustindex_collector->get_response_key() ]));
+// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+$res = $wpdb->get_results($wpdb->prepare('SELECT * FROM %i WHERE hash LIKE %s LIMIT 1', $tableName, $hash), ARRAY_A);
+// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+$mode = isset($_GET['mode']) ? sanitize_text_field(wp_unslash($_GET['mode'])) : 'clicked';
 if (count($res) !== 1) {
 global $wp_query;
 $wp_query->set_404();
@@ -160,10 +172,11 @@ $schedule = $res[0];
 $key = $mode . '_at';
 if (in_array($key, [ 'opened_at', 'clicked_at' ]) && empty($schedule[ $key ])) {
 $data = [];
-$data[ $key ] = date('Y-m-d H:i:s');
+$data[ $key ] = gmdate('Y-m-d H:i:s');
 if ($key === 'clicked_at') {
-$data['opened_at'] = date('Y-m-d H:i:s');
+$data['opened_at'] = gmdate('Y-m-d H:i:s');
 }
+// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 $wpdb->update($tableName, $data, [ 'id' => $schedule['id'] ]);
 }
 if ($mode === 'clicked') {
@@ -176,9 +189,12 @@ header('Location: '. $reviewLink);
 }
 exit;
 }
+// phpcs:ignore WordPress.Security.NonceVerification.Recommended
 else if (isset($_GET[ $trustindex_collector->get_feedback_key() ])) {
-if ($hash = sanitize_text_field($_GET[ $trustindex_collector->get_feedback_key() ])) {
-$res = $wpdb->get_results('SELECT * FROM `'. $tableName .'` WHERE hash LIKE "'. $hash .'" LIMIT 1', ARRAY_A);
+// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+if ($hash = sanitize_text_field(wp_unslash($_GET[ $trustindex_collector->get_feedback_key() ]))) {
+// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+$res = $wpdb->get_results($wpdb->prepare('SELECT * FROM %i WHERE hash LIKE %s LIMIT 1', $tableName, $hash), ARRAY_A);
 if (count($res) != 1) {
 global $wp_query;
 $wp_query->set_404();
@@ -187,11 +203,14 @@ exit;
 }
 $schedule = $res[0];
 $isTest = false;
+// phpcs:ignore WordPress.Security.NonceVerification.Missing
 if (isset($_POST['text'])) {
-$text = wp_kses_post(stripslashes($_POST['text']));
+// phpcs:ignore WordPress.Security.NonceVerification.Missing
+$text = wp_kses_post(wp_unslash($_POST['text']));
+// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 $wpdb->update($tableName, [
 'feedback' => $text,
-'feedback_at' => date('Y-m-d H:i:s')
+'feedback_at' => gmdate('Y-m-d H:i:s')
 ], [ 'id' => $schedule['id'] ]);
 $message = "
 Hi,<br /><br />
@@ -221,7 +240,8 @@ $schedule = [
 ];
 $isTest = true;
 }
-$locale = isset($_GET['lang']) ? $_GET['lang'] : get_option($trustindex_collector->get_option_name('support-language'), $trustindex_collector->get_default_settings()['support-language']);
+// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+$locale = isset($_GET['lang']) ? sanitize_text_field(wp_unslash($_GET['lang'])) : get_option($trustindex_collector->get_option_name('support-language'), $trustindex_collector->get_default_settings()['support-language']);
 if ($locale === 'en') {
 if (function_exists('switch_to_locale')) {
 switch_to_locale('en_US');
@@ -240,6 +260,7 @@ add_action('admin_notices', function() {
 if (class_exists('Woocommerce')) {
 return;
 }
-echo '<div class="notice notice-error is-dismissible"><p>'. sprintf(__('WooCommerce is not activated, please activate it to use <strong>%s</strong>!', 'customer-reviews-collector-for-woocommerce'), 'Customer Reviews Collector for WooCommerce') .'</p></div>';
+/* translators: %s: Customer Reviews Collector for WooCommerce */
+echo '<div class="notice notice-error is-dismissible"><p>'. wp_kses_post(sprintf(__('WooCommerce is not activated, please activate it to use <strong>%s</strong>!', 'customer-reviews-collector-for-woocommerce'), 'Customer Reviews Collector for WooCommerce')) .'</p></div>';
 });
 ?>

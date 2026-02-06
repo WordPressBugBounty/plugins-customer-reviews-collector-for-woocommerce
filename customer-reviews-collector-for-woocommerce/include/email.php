@@ -5,7 +5,6 @@
 <xml>
 <o:OfficeDocumentSettings>
 <o:AllowPNG/>
-<o:PixelsPerInch>96</o:PixelsPerInch>
 </o:OfficeDocumentSettings>
 </xml>
 <![endif]-->
@@ -102,7 +101,7 @@ width: 100% !important;
 <table border="0" cellpadding="0" cellspacing="0" width="100%" class="header">
 <tr>
 <td style="padding: 20px 0px 20px 0px" align="center">
-<img alt="" src="<?php echo $logoImage; ?>" width="150" style="width: 150px; display: block" border="0" />
+<img alt="" src="<?php echo esc_url($logoImage); ?>" width="150" style="width: 150px; display: block" border="0" />
 </td>
 </tr>
 </table>
@@ -110,7 +109,7 @@ width: 100% !important;
 <table border="0" cellpadding="0" cellspacing="0" width="550" class="content-table" style="margin: 30px 15px; margin-bottom: 0">
 <tr>
 <td align="left" id="email-content" style="padding: 30px; font-size: 18px; font-family: Arial, sans-serif; color: #000000; text-decoration: none; line-height: 25px;">
-<?php echo $tiEmailContent; ?>
+<?php echo wp_kses($tiEmailContent, TrustindexCollectorPlugin::$allowedEmailHtmlTags); ?>
 </td>
 </tr>
 </table>
@@ -118,7 +117,7 @@ width: 100% !important;
 <table border="0" cellpadding="0" cellspacing="0" width="550" class="footer">
 <tr>
 <td align="center" style="padding: 0; padding-top: 30px; font-size: 13px; font-family: Arial, sans-serif; color: #9da1a3; text-decoration: none; line-height: 20px;" id="email-footer-content">
-<?php echo $tiEmailFooterContent; ?>
+<?php echo wp_kses($tiEmailFooterContent, TrustindexCollectorPlugin::$allowedEmailHtmlTags); ?>
 </td>
 </tr>
 </table>

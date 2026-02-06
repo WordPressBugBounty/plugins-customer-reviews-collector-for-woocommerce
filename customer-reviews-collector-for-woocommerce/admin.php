@@ -7,20 +7,23 @@ if (!current_user_can('edit_pages')) {
 die('The account you\'re logged in to doesn\'t have permission to access this page.');
 }
 if (!class_exists('Woocommerce')) {
-die(__('Activate WooCommerce first!', 'customer-reviews-collector-for-woocommerce'));
+die(esc_html(__('Activate WooCommerce first!', 'customer-reviews-collector-for-woocommerce')));
 }
 $tabs = $pluginManager::getPluginTabs();
-$selectedTab = isset($_GET['tab']) ? sanitize_text_field($_GET['tab']) : null;
+// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+$selectedTab = isset($_GET['tab']) ? sanitize_text_field(wp_unslash($_GET['tab'])) : null;
 if (!in_array($selectedTab, array_values($tabs))) {
 $selectedTab = 'dashboard';
 }
-$_page = isset($_GET['page']) ? sanitize_text_field($_GET['page']) : null;
-$_tab = isset($_GET['tab']) ? sanitize_text_field($_GET['tab']) : $selectedTab;
-$tiCommand = isset($_REQUEST['command']) ? sanitize_text_field($_REQUEST['command']) : null;
+$_page = $pluginManagerInstance->get_plugin_slug().'/admin.php';
+// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+$_tab = isset($_GET['tab']) ? sanitize_text_field(wp_unslash($_GET['tab'])) : $selectedTab;
+// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+$tiCommand = isset($_REQUEST['command']) ? sanitize_text_field(wp_unslash($_REQUEST['command'])) : null;
 $settingsState = (int)get_option($pluginManagerInstance->get_option_name('settings-state'), 1);
 ?>
 <div id="trustindex-collector-admin">
-<div id="ti-assets-error" class="alert alert-warning alert-hidden"><?php echo __('For some reason, the <strong>CSS</strong> file required to run the plugin was not loaded.<br />One of your plugins is probably causing the problem.', 'customer-reviews-collector-for-woocommerce'); ?></div>
+<div id="ti-assets-error" class="alert alert-warning alert-hidden"><?php echo wp_kses_post(__('For some reason, the <strong>CSS</strong> file required to run the plugin was not loaded.<br />One of your plugins is probably causing the problem.', 'customer-reviews-collector-for-woocommerce')); ?></div>
 <script type="text/javascript">
 window.onload = function() {
 let notLoaded = [];
@@ -110,7 +113,7 @@ loadedCount++;
 <div class="container">
 <div class="row align-items-center">
 <div class="plugin-title col-12 col-sm">
-<h1><?php echo __('Customer Reviews Collector for WooCommerce', 'customer-reviews-collector-for-woocommerce'); ?></h1>
+<h1><?php echo esc_html(__('Customer Reviews Collector for WooCommerce', 'customer-reviews-collector-for-woocommerce')); ?></h1>
 </div>
 <div class="logo col-12 col-sm-auto ml-auto">
 <img src="<?php echo esc_url($pluginManagerInstance->get_plugin_file_url('assets/img/trustindex.svg')); ?>" alt="">

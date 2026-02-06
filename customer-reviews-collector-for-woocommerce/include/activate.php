@@ -6,6 +6,7 @@ $wpdb->hide_errors();
 $notCreatedTables = [];
 $mysqlError = "";
 if (is_multisite()) {
+// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 $sites = $wpdb->get_results('SELECT blog_id AS id FROM `'.$wpdb->blogs.'` ORDER BY blog_id', ARRAY_A);
 } else {
 $sites = [['id' => -1]];
@@ -41,6 +42,7 @@ return trim($ti_db_schema[ $tableName ]);
 $preStyle = 'background: #eee; padding: 10px 20px; word-wrap: break-word; white-space: pre-wrap';
 wp_die(wp_kses_post(
 '<strong>' . __('Plugin activation is failed because the required database tables could not created!', 'customer-reviews-collector-for-woocommerce') . '</strong><br /><br />' .
+/* translators: %s: database */
 sprintf(__('We got the following error from %s:', 'customer-reviews-collector-for-woocommerce'), __('database', 'customer-reviews-collector-for-woocommerce')) .
 '<pre style="'. $preStyle .'">'. $mysqlError .'</pre>' .
 '<strong>' . __('Run the following SQL codes in your database administration interface (e.g. PhpMyAdmin) to create the tables or contact your system administrator:', 'customer-reviews-collector-for-woocommerce') . '</strong>' .

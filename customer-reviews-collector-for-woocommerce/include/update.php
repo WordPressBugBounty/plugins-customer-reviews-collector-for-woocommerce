@@ -7,15 +7,16 @@ if ($updateChecked < $currentVersion) {
 
 if ($currentVersion >= 2) {
 $tableName = $this->get_tablename('schedule_list');
-if (count($wpdb->get_results("SHOW COLUMNS FROM `$tableName` LIKE 'hash'")) === 0) {
-$wpdb->query("
-ALTER TABLE `$tableName`
+// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+if (count($wpdb->get_results($wpdb->prepare('SHOW COLUMNS FROM %i LIKE %s', $tableName, 'hash'))) === 0) {
+// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange
+$wpdb->query($wpdb->prepare('ALTER TABLE %i
 ADD `hash` VARCHAR(50) NOT NULL AFTER `created_at`,
 ADD `opened_at` DATETIME NULL AFTER `hash`,
 ADD `clicked_at` DATETIME NULL AFTER `opened_at`,
 ADD `feedback` TEXT NOT NULL AFTER `clicked_at`,
 ADD `feedback_at` DATETIME NULL AFTER `feedback`
-");
+', $tableName));
 }
 $url = get_option($this->get_option_name('platform-url'), null);
 if ($url && !is_array($url)) {
@@ -33,12 +34,15 @@ update_option($this->get_option_name('campaign-active'), 1);
 
 if ($currentVersion >= 3.6) {
 $tableName = $this->get_tablename('schedule_list');
-$res = $wpdb->get_results("SHOW FULL COLUMNS FROM `$tableName` WHERE Field IN ('name', 'feedback')");
+// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+$res = $wpdb->get_results($wpdb->prepare('SHOW FULL COLUMNS FROM %i WHERE Field IN ("name", "feedback")', $tableName));
 if ($res[0]->Collation !== 'utf8mb4_unicode_520_ci') {
-$wpdb->query("ALTER TABLE `$tableName` CHANGE `name` `name` VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_520_ci NOT NULL");
+// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange
+$wpdb->query($wpdb->prepare('ALTER TABLE %i CHANGE `name` `name` VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_520_ci NOT NULL', $tableName));
 }
 if ($res[1]->Collation !== 'utf8mb4_unicode_520_ci') {
-$wpdb->query("ALTER TABLE `$tableName` CHANGE `feedback` `feedback` VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_520_ci NOT NULL");
+// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange
+$wpdb->query($wpdb->prepare('ALTER TABLE %i CHANGE `feedback` `feedback` VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_520_ci NOT NULL', $tableName));
 }
 }
 

@@ -1,10 +1,46 @@
 <?php
 class TrustindexCollectorPlugin
 {
+private $plugin_file_path;
 private $pluginFilePath;
 private $version;
+public static $allowedEmailHtmlTags = [
+'html' => ['xmlns' => true, 'xmlns:v' => true, 'xmlns:o' => true],
+'head' => [],
+'title' => [],
+'body' => ['style' => true],
+'div' => [
+'id' => true, 'class' => true, 'style' => true, 'aria-label' => true, 'role' => true,
+],
+'a' => [
+'class' => true, 'style' => true, 'href' => true, 'role' => true, 'target' => true, 'rel' => true, 'aria-label' => true,
+'data-subcontent' => true,
+'data-subcontent-target' => true,
+],
+'img' => ['class' => true, 'style' => true, 'src' => true, 'alt' => true, 'width' => true, 'height' => true, 'loading' => true],
+'span' => [
+'class' => true, 'style' => true,
+'data-id' => true,
+'data-empty' => true,
+'data-time' => true,
+'data-container' => true,
+'data-collapse-text' => true,
+'data-open-text' => true,
+],
+'table' => ['class' => true, 'style' => true, 'cellpadding' => true, 'cellspacing' => true, 'border' => true, 'width' => true],
+'tbody' => ['class' => true, 'style' => true],
+'tr' => ['class' => true, 'style' => true],
+'td' => ['id' => true, 'class' => true, 'style' => true, 'align' => true, 'bgcolor' => true],
+'p' => ['class' => true, 'style' => true],
+'font' => ['class' => true, 'style' => true],
+'strong' => ['class' => true, 'style' => true],
+'br' => [],
+'i' => ['class' => true, 'style' => true],
+'style' => ['type' => true],
+];
 public function __construct($pluginFilePath, $version)
 {
+$this->plugin_file_path = $pluginFilePath;
 $this->pluginFilePath = $pluginFilePath;
 $this->version = $version;
 }
@@ -57,7 +93,7 @@ wp_unschedule_event($timestamp, $this->get_schedule_cronname());
 }
 $file = wp_upload_dir()['basedir'] . DIRECTORY_SEPARATOR . $this->get_email_logo_filename();
 if (file_exists($file)) {
-unlink($file);
+wp_delete_file($file);
 }
 }
 public function output_buffer()
@@ -67,7 +103,9 @@ ob_start();
 public function get_plugin_current_version()
 {
 add_action('http_api_curl', function($handle) {
+// phpcs:ignore WordPress.WP.AlternativeFunctions.curl_curl_setopt
 curl_setopt($handle, CURLOPT_SSL_VERIFYPEER, false);
+// phpcs:ignore WordPress.WP.AlternativeFunctions.curl_curl_setopt
 curl_setopt($handle, CURLOPT_SSL_VERIFYHOST, false);
 }, 10);
 $response = wp_remote_get('https://api.wordpress.org/plugins/info/1.2/?action=plugin_information&request[slug]='. $this->get_plugin_slug());
@@ -79,7 +117,10 @@ return $json['version'];
 }
 public function loadI18N()
 {
-load_plugin_textdomain($this->get_plugin_slug(), false, $this->get_plugin_slug() . DIRECTORY_SEPARATOR . 'languages');
+load_textdomain(
+$this->get_plugin_slug(),
+$this->get_plugin_dir() . 'languages/'.$this->get_plugin_slug().'-' . get_locale() . '.mo'
+);
 }
 
 
@@ -92,7 +133,8 @@ public function is_table_exists($name = "")
 {
 global $wpdb;
 $tableName = $this->get_tablename($name);
-return ($wpdb->get_var("SHOW TABLES LIKE '$tableName'") == $tableName);
+// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+return ($wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $tableName)) == $tableName);
 }
 public static function getPluginTabs()
 {
@@ -180,16 +222,16 @@ $tmp = explode('/', $hook);
 $currentSlug = array_shift($tmp);
 if ($this->get_plugin_slug() === $currentSlug) {
 if (file_exists($this->get_plugin_dir() . 'assets' . DIRECTORY_SEPARATOR . 'css' . DIRECTORY_SEPARATOR . 'admin.css')) {
-wp_enqueue_style('trustindex-collector-admin', $this->get_plugin_file_url('assets/css/admin.css'));
+wp_enqueue_style('trustindex-collector-admin', $this->get_plugin_file_url('assets/css/admin.css'), [], $this->version);
 }
 if (file_exists($this->get_plugin_dir() . 'assets' . DIRECTORY_SEPARATOR . 'js' . DIRECTORY_SEPARATOR . 'admin.js')) {
-wp_enqueue_script('trustindex-collector-admin', $this->get_plugin_file_url('assets/js/admin.js'));
+wp_enqueue_script('trustindex-collector-admin', $this->get_plugin_file_url('assets/js/admin.js'), [], $this->version, ['in_footer' => false]);
 }
 if (file_exists($this->get_plugin_dir() . 'assets' . DIRECTORY_SEPARATOR . 'js' . DIRECTORY_SEPARATOR . 'bootstrap.bundle.min.js')) {
-wp_enqueue_script('trustindex-collector-boostrap', $this->get_plugin_file_url('assets/js/bootstrap.bundle.min.js'));
+wp_enqueue_script('trustindex-collector-boostrap', $this->get_plugin_file_url('assets/js/bootstrap.bundle.min.js'), [], $this->version, ['in_footer' => false]);
 }
 if (file_exists($this->get_plugin_dir() . 'assets' . DIRECTORY_SEPARATOR . 'js' . DIRECTORY_SEPARATOR . 'Chart.min.js')) {
-wp_enqueue_script('trustindex-collector-chart', $this->get_plugin_file_url('assets/js/Chart.min.js'));
+wp_enqueue_script('trustindex-collector-chart', $this->get_plugin_file_url('assets/js/Chart.min.js'), [], $this->version, ['in_footer' => false]);
 }
 }
 }
@@ -244,23 +286,39 @@ return [
 'support-language' => 'en'
 ];
 }
-public function save_option_from_request($name, $type = 'field')
+private function array_sanitize_text_field_wp_unslash($array)
 {
+$result = [];
+foreach ($array as $key => $val) {
+if (is_array($val)) {
+$result[$key] = $this->array_sanitize_text_field_wp_unslash($val);
+} else {
+$result[$key] = trim(sanitize_text_field(wp_unslash($val)));
+}
+}
+return $result;
+}
+public function save_option_from_request($name, $nonceName = null, $type = 'field')
+{
+if ($nonceName) {
+check_admin_referer($nonceName);
+}
 $value = "";
-if (isset($_REQUEST[ $name ])) {
+if (isset($_REQUEST[$name])) {
 if ($type === 'array') {
-$value = $_REQUEST[ $name ];
+// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.MissingUnslash, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+$value = $this->array_sanitize_text_field_wp_unslash($_REQUEST[ $name ]);
 }
 else if ($type === 'text') {
-$value = trim(wp_kses_post(stripslashes($_REQUEST[ $name ])));
+$value = trim(wp_kses_post(wp_unslash($_REQUEST[$name])));
 }
 else if ($type === 'email-array') {
-$value = strtolower(preg_replace('/\s/', '', sanitize_text_field($_REQUEST[ $name ])));
+$value = strtolower(preg_replace('/\s/', '', sanitize_text_field(wp_unslash($_REQUEST[$name]))));
 $value = preg_replace('/[,;|]+/', ',', $value);
 $value = explode(',', $value);
 }
 else {
-$value = trim(sanitize_text_field(wp_unslash($_REQUEST[ $name ])));
+$value = trim(sanitize_text_field(wp_unslash($_REQUEST[$name])));
 }
 }
 update_option($this->get_option_name($name), $value, false);
@@ -347,8 +405,8 @@ $settings['customer_full_name']
 ], $tiEmailContent);
 if ($tiEmailFooterContent) {
 $tiEmailFooterContent = nl2br($tiEmailFooterContent);
-}
 $tiEmailFooterContent = str_replace('<a>', '<a href="{{unsubscribe_url}}" target="_blank" style="font-size: inherit; font-family: inherit; color: inherit; text-decoration: underline">', $tiEmailFooterContent);
+}
 if (isset($settings['logo-image']) && $settings['logo-image']) {
 $logoImage = $settings['logo-image'];
 }
@@ -441,10 +499,11 @@ global $wpdb;
 $tableName = $this->get_tablename('schedule_list');
 $hash = null;
 if ($scheduleId) {
-$wpdb->query("UPDATE `$tableName` SET sent = 1 WHERE id = '$scheduleId'");
-}
-else {
-$date = date('Y-m-d H:i:s');
+// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+$wpdb->query($wpdb->prepare('UPDATE %i SET sent = 1 WHERE id = %d', $tableName, $scheduleId));
+} else {
+$date = gmdate('Y-m-d H:i:s');
+// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 $wpdb->insert($tableName, [
 'email' => $email,
 'name' => $name,
@@ -454,6 +513,7 @@ $wpdb->insert($tableName, [
 'created_at' => $date
 ]);
 $hash = md5($wpdb->insert_id . '-' . $date);
+// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 $wpdb->update($tableName, [ 'hash' => $hash ], [ 'id' => $wpdb->insert_id ]);
 }
 return $hash;
@@ -462,26 +522,29 @@ public function get_pending_schedules()
 {
 global $wpdb;
 require_once(ABSPATH . 'wp-admin' . DIRECTORY_SEPARATOR . 'includes' . DIRECTORY_SEPARATOR . 'upgrade.php');
-return $wpdb->get_results('SELECT id, email, order_id, name, hash, created_at FROM `'. $this->get_tablename('schedule_list') .'` WHERE `timestamp` <= '. time() .' AND sent = 0 AND `timestamp` > 0 LIMIT 20');
+// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+return $wpdb->get_results($wpdb->prepare('SELECT id, email, order_id, name, hash, created_at, timestamp FROM %i WHERE `timestamp` <= %d AND sent = 0 AND `timestamp` > 0 LIMIT 20', $this->get_tablename('schedule_list'), time()));
 }
 public function get_schedules($page = 1, $query = "")
 {
 global $wpdb;
 require_once(ABSPATH . 'wp-admin' . DIRECTORY_SEPARATOR . 'includes' . DIRECTORY_SEPARATOR . 'upgrade.php');
+$tableName = $this->get_tablename('schedule_list');
 $limit = 10;
-$sql = "SELECT * FROM `". $this->get_tablename('schedule_list') ."` WHERE email LIKE '%$query%' OR name like '%$query%' ORDER BY `timestamp`";
-$total = $wpdb->get_results(str_replace('*', 'COUNT(id) as num', $sql))[0]->num;
-$sql .= ' LIMIT ' . (($page - 1) * $limit) . ', ' . $limit;
+// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+$total = $wpdb->get_results($wpdb->prepare('SELECT COUNT(id) as num FROM %i WHERE email LIKE %s OR name like %s', $tableName, "%$query%", "%$query%"))[0]->num;
 return (object) [
 'total' => $total,
 'maxNumPages' => ceil($total / $limit),
-'schedules' => $wpdb->get_results($sql)
+// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+'schedules' => $wpdb->get_results($wpdb->prepare('SELECT * FROM %i WHERE email LIKE %s OR name like %s ORDER BY `timestamp` LIMIT %d,%d', $tableName, "%$query%", "%$query%", ($page - 1) * $limit, $limit))
 ];
 }
 public function get_schedule($id)
 {
 global $wpdb;
-$res = $wpdb->get_results('SELECT * FROM `'. $this->get_tablename('schedule_list') .'` WHERE id = '. (int)$id .' LIMIT 1');
+// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+$res = $wpdb->get_results($wpdb->prepare('SELECT * FROM %i WHERE id = %d LIMIT 1', $this->get_tablename('schedule_list'), (int)$id));
 if (isset($res[0])) {
 return $res[0];
 }
@@ -491,8 +554,8 @@ public function isRequestExists($email, $orderId)
 {
 global $wpdb;
 $email = sanitize_email($email);
-$id = (int)$orderId;
-$res = $wpdb->get_results('SELECT id FROM `'. $this->get_tablename('schedule_list') .'` WHERE order_id = "'. $orderId .'" AND email LIKE "'. $email .'" LIMIT 1');
+// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+$res = $wpdb->get_results($wpdb->prepare('SELECT id FROM %i WHERE order_id = %s AND email LIKE %s LIMIT 1', $this->get_tablename('schedule_list'), $orderId, $email));
 return count($res) === 1;
 }
 
@@ -501,15 +564,19 @@ public function is_email_unsubscribed($email)
 {
 global $wpdb;
 $email = sanitize_email($email);
-$res = $wpdb->get_results('SELECT id FROM `'. $this->get_tablename('unsubscribes') .'` WHERE email LIKE "'. $email .'" LIMIT 1');
+// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+$res = $wpdb->get_results($wpdb->prepare('SELECT id FROM %i WHERE email LIKE %s LIMIT 1', $this->get_tablename('unsubscribes'), $email));
 return count($res) === 1;
 }
 public function unsubscribe()
 {
 global $wpdb;
+// phpcs:ignore WordPress.Security.NonceVerification.Recommended
 if (isset($_GET['ti-collector-unsubscribe'])) {
-$email = strtolower(sanitize_email($_GET['ti-collector-unsubscribe']));
-$md5 = sanitize_text_field($_GET['q']);
+// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+$email = strtolower(sanitize_email(wp_unslash($_GET['ti-collector-unsubscribe'])));
+// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+$md5 = isset($_GET['q']) ? sanitize_text_field(wp_unslash($_GET['q'])) : '';
 if (!$email || $md5 !== md5($email)) {
 header('HTTP/1.0 404 Not Found');
 exit;
@@ -518,10 +585,12 @@ if ($this->is_email_unsubscribed($email)) {
 echo 'Email already unsubscribed!';
 exit;
 }
+// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 $wpdb->insert($this->get_tablename('unsubscribes'), [
 'email' => $email,
-'created_at' => date('Y-m-d H:i:s')
+'created_at' => gmdate('Y-m-d H:i:s')
 ]);
+// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 $wpdb->delete($this->get_tablename('schedule_list'), [ 'email' => $email, 'sent' => 0 ]);
 echo 'Email unsubscribed successfully!';
 exit;
@@ -531,14 +600,15 @@ public function get_unsubscribes($page = 1, $query = "")
 {
 require_once(ABSPATH . 'wp-admin' . DIRECTORY_SEPARATOR . 'includes' . DIRECTORY_SEPARATOR . 'upgrade.php');
 global $wpdb;
+$tableName = $this->get_tablename('unsubscribes');
 $limit = 10;
-$sql = "SELECT * FROM `". $this->get_tablename('unsubscribes') ."` WHERE email LIKE '%$query%' ORDER BY `created_at` DESC";
-$total = $wpdb->get_results(str_replace('*', 'COUNT(id) as num', $sql))[0]->num;
-$sql .= ' LIMIT ' . (($page - 1) * $limit) . ', ' . $limit;
+// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+$total = $wpdb->get_results($wpdb->prepare('SELECT COUNT(id) as num FROM %i WHERE email LIKE %s', $tableName, "%$query%"))[0]->num;
 return (object) [
 'total' => $total,
 'maxNumPages' => ceil($total / $limit),
-'unsubscribes' => $wpdb->get_results($sql)
+// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+'unsubscribes' => $wpdb->get_results($wpdb->prepare('SELECT * FROM %i WHERE email LIKE %s ORDER BY `created_at` DESC LIMIT %d,%d', $tableName, "%$query%", ($page - 1) * $limit, $limit))
 ];
 }
 }

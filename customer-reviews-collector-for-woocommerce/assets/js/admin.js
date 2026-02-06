@@ -673,6 +673,11 @@ jQuery(document).ready(function($) {
 			iframe_inner.html(html);
 			setTimeout(() => iframe.css('height', iframe_inner.find('table.main').height()), 200);
 
+			let logoDataImage = $('#ti-collector-email-logo-image-input').val();
+			if (logoDataImage && logoDataImage !== 'delete') {
+				iframe_inner.find('img[src=""]').attr('src', logoDataImage);
+			}
+
 			// disable links
 			iframe_inner.find('a').css('pointer-events', 'none');
 		});
@@ -762,7 +767,7 @@ jQuery(document).ready(function($) {
 					let canvas = document.createElement('canvas');
 					let width = image.width;
 					let height = image.height;
-					let max_width = 150;
+					let max_width = 300;
 
 					if(width > max_width)
 					{
@@ -932,6 +937,27 @@ jQuery(document).on('click', '.btn-copy2clipboard', function(event) {
 
 // - ../../../../_wordpress_source_code/static/js/import/rate-us.js
 // remember on hover
+(function() {
+	setTimeout(() => {
+		let quickRating = document.querySelector('.ti-quick-rating');
+		if (quickRating) {
+			for (let i = 0; i < 5; i++) {
+				setTimeout(() => {
+					let star = quickRating.querySelector('.ti-quick-rating .ti-star-check[data-value="'+ (i+1) +'"]');
+					let prevStar = quickRating.querySelector('.ti-quick-rating .ti-star-check[data-value="'+ i +'"]')
+					star.classList.add('ti-active')
+					prevStar?.classList.remove('ti-active');
+				}, i * 200);
+			}
+			quickRating.addEventListener(
+				'mouseleave',
+				() => quickRating.querySelector('.ti-star-check.ti-active').classList.remove('ti-active'),
+				{once: true}
+			);
+		}
+	}, 1000);
+})();
+
 jQuery(document).on('mouseenter', '.ti-quick-rating', function(event) {
 	let container = jQuery(this);
 	let selected = container.find('.ti-star-check.ti-active, .star-check.active');
@@ -941,6 +967,7 @@ jQuery(document).on('mouseenter', '.ti-quick-rating', function(event) {
 		container.data('selected', selected.index()).find('.ti-star-check, .star-check').removeClass('ti-active active');
 
 		// give back active star on mouse enter
+		console.log(container.data('selected'));
 		container.one('mouseleave', () => container.find('.ti-star-check, .star-check').eq(container.data('selected')).addClass('ti-active active'));
 	}
 });
