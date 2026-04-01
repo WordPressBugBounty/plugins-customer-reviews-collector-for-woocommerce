@@ -518,6 +518,12 @@ $wpdb->update($tableName, [ 'hash' => $hash ], [ 'id' => $wpdb->insert_id ]);
 }
 return $hash;
 }
+public function register_schedule_not_sent($scheduleId)
+{
+global $wpdb;
+// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+$wpdb->query($wpdb->prepare('UPDATE %i SET sent = 0 WHERE id = %d', $this->get_tablename('schedule_list'), $scheduleId));
+}
 public function get_pending_schedules()
 {
 global $wpdb;
