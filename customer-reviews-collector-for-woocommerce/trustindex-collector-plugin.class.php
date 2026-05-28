@@ -438,13 +438,14 @@ update_option('woocommerce_email_from_name', $settings['email-sender'], false);
 $wcMailer = WC()->mailer();
 $html = $this->getEmailHtml($settings['email-text'], $settings['email-footer-text'], $settings, $hash);
 $html = str_replace('{{unsubscribe_url}}', get_site_url() .'?ti-collector-unsubscribe='. urlencode($email) .'&q='. md5($email), $html);
-$wcMailer->send($email, $settings['email-subject'], $html);
+$result = $wcMailer->send($email, $settings['email-subject'], $html);
 if ($settings['email-sender-email'] && $settings['email-sender-email'] !== $oldSenderEmail) {
 update_option('woocommerce_email_from_address', $oldSenderEmail, false);
 }
 if ($settings['email-sender'] && $settings['email-sender'] !== $oldSenderName) {
 update_option('woocommerce_email_from_name', $oldSenderName, false);
 }
+return $result;
 }
 
 
@@ -491,7 +492,7 @@ return $url;
 }
 public function get_schedule_cronname()
 {
-return 'trustindex_collector_cron';
+return 'ti_collector_cron';
 }
 public function register_schedule_sent($email, $orderId, $scheduleId = null, $name = "")
 {
@@ -518,18 +519,12 @@ $wpdb->update($tableName, [ 'hash' => $hash ], [ 'id' => $wpdb->insert_id ]);
 }
 return $hash;
 }
-public function register_schedule_not_sent($scheduleId)
-{
-global $wpdb;
-// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
-$wpdb->query($wpdb->prepare('UPDATE %i SET sent = 0 WHERE id = %d', $this->get_tablename('schedule_list'), $scheduleId));
-}
 public function get_pending_schedules()
 {
 global $wpdb;
 require_once(ABSPATH . 'wp-admin' . DIRECTORY_SEPARATOR . 'includes' . DIRECTORY_SEPARATOR . 'upgrade.php');
 // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
-return $wpdb->get_results($wpdb->prepare('SELECT id, email, order_id, name, hash, created_at, timestamp FROM %i WHERE `timestamp` <= %d AND sent = 0 AND `timestamp` > 0 LIMIT 20', $this->get_tablename('schedule_list'), time()));
+return $wpdb->get_results($wpdb->prepare('SELECT id, email, order_id, name, hash, created_at, timestamp FROM %i WHERE `timestamp` <= %d AND sent = 0 AND `timestamp` > 0 LIMIT 25', $this->get_tablename('schedule_list'), time()));
 }
 public function get_schedules($page = 1, $query = "")
 {
