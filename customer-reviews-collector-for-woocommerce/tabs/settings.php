@@ -156,7 +156,7 @@ asort($supportLanguages);
 <div class="col-12 col-sm-auto">
 <select class="form-select" name="trigger-delay">
 <option value="0"<?php if ((int)$tiSettings['trigger-delay'] === 0): ?> selected<?php endif; ?>><?php echo esc_html(__('immediately', 'customer-reviews-collector-for-woocommerce')); ?></option>
-<?php foreach ([ 1, 2, 3, 4, 5, 6, 7, 14, 21 ] as $days): ?>
+<?php foreach ([ 1, 2, 3, 4, 5, 6, 7, 14, 21, 28, 30 ] as $days): ?>
 <option value="<?php echo esc_attr($days); ?>"<?php if ((int)$tiSettings['trigger-delay'] === $days): ?> selected<?php endif; ?>>
 <?php
 /* translators: %s: days (1-21) */

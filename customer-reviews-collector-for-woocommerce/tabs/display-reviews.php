@@ -7,8 +7,8 @@ wp_enqueue_script('trustindex-js', 'https://cdn.trustindex.io/loader.js', [], tr
 <div class="card-header card-header-lg"><?php echo esc_html(__('Skyrocket Your Sales with Customer Reviews', 'customer-reviews-collector-for-woocommerce')); ?></div>
 <div class="card-body">
 <p class="size-18"><?php
-/* translators: %s: 900.000 */
-echo esc_html(sprintf(__('%s+ businesses use Trustindex to collect and embed reviews easily.', 'customer-reviews-collector-for-woocommerce'), '900.000')
+/* translators: %s: 1,000,000 */
+echo esc_html(sprintf(__('%s+ businesses use Trustindex to collect and embed reviews easily.', 'customer-reviews-collector-for-woocommerce'), '1,000,000')
 .' '.
 __('Increase SEO, trust and sales using customer reviews.', 'customer-reviews-collector-for-woocommerce'));
 ?></p>

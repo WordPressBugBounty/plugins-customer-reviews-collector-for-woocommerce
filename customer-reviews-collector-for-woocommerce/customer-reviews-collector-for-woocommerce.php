@@ -4,9 +4,9 @@ Plugin Name: Customer Reviews Collector for WooCommerce
 Plugin URI: https://wordpress.org/plugins/customer-reviews-collector-for-woocommerce/
 Description: Collect reviews on Google, Facebook, Yelp, Trustindex and other platforms automatically, with the help of our system.
 Tags: collect, Woocommerce reviews, customer reviews, Google reviews, review plugin
-Version: 4.7.6
+Version: 4.7.7
 Requires at least: 6.2
-Requires PHP: 7.4
+Requires PHP: 7.2
 Author: Trustindex.io <support@trustindex.io>
 Author URI: https://www.trustindex.io/
 Contributors: trustindex
@@ -25,7 +25,7 @@ Copyright 2019 Trustindex Kft (email: support@trustindex.io)
 */
 defined( 'ABSPATH' ) or die( 'No script kiddies please!' );
 require_once plugin_dir_path( __FILE__ ) . 'trustindex-collector-plugin.class.php';
-$trustindex_collector = new TrustindexCollectorPlugin(__FILE__, "4.7.6");
+$trustindex_collector = new TrustindexCollectorPlugin(__FILE__, "4.7.7");
 register_activation_hook(__FILE__, [ $trustindex_collector, 'activate' ]);
 register_deactivation_hook(__FILE__, [ $trustindex_collector, 'deactivate' ]);
 add_action('plugins_loaded', [ $trustindex_collector, 'load' ]);
@@ -55,7 +55,7 @@ $tableName = $trustindex_collector->get_tablename('schedule_list');
 $savedInvites = 0;
 if ($frequency) {
 // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
-$wpdb->get_results($wpdb->prepare('SELECT id FROM %i WHERE `email` LIKE %s AND TIMESTAMPDIFF(DAY, created_at, NOW()) <= %s', $tableName, $email, 30 * $frequency));
+$wpdb->get_results($wpdb->prepare('SELECT id FROM %i WHERE `email` = %s AND TIMESTAMPDIFF(DAY, created_at, NOW()) <= %s', $tableName, $email, 30 * $frequency));
 $savedInvites = $wpdb->num_rows;
 }
 if (!$savedInvites) {
@@ -64,17 +64,15 @@ $timestamp = time() + ($triggerDelay * 86400);
 if (!$triggerDelay) {
 $trustindex_collector->sendMail($email, [ 'customer_full_name' => $customerFullName ], $trustindex_collector->register_schedule_sent($email, $id, null, $customerFullName));
 } else {
-$date = gmdate('Y-m-d H:i:s');
 // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 $wpdb->insert($tableName, [
 'email' => $email,
 'name' => $customerFullName,
 'order_id' => $id,
 'timestamp' => $timestamp,
-'created_at' => $date
+'created_at' => gmdate('Y-m-d H:i:s'),
+'hash' => $trustindex_collector->generate_hash()
 ]);
-// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
-$wpdb->update($tableName, [ 'hash' => md5($wpdb->insert_id . '-' . $date) ], [ 'id' => $wpdb->insert_id ]);
 }
 }
 }
@@ -93,7 +91,7 @@ if (!isset($trustindex_collector) || is_null($trustindex_collector)) {
 if (!class_exists('TrustindexCollectorPlugin')) {
 require_once plugin_dir_path( __FILE__ ) . 'trustindex-collector-plugin.class.php';
 }
-$trustindex_collector = new TrustindexCollectorPlugin(__FILE__, "4.7.6");
+$trustindex_collector = new TrustindexCollectorPlugin(__FILE__, "4.7.7");
 }
 if (!wp_next_scheduled($trustindex_collector->get_schedule_cronname())) {
 wp_schedule_event(time(), 'five_minutes', $trustindex_collector->get_schedule_cronname());
@@ -117,7 +115,7 @@ if (!$customerFullName && ($customer = new WC_Customer(get_post_meta($s->order_i
 $customerFullName = $customer->get_display_name();
 }
 if (!$s->hash) {
-$s->hash = md5($s->id . '-' . $s->created_at);
+$s->hash = $trustindex_collector->generate_hash();
 // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 $wpdb->update($trustindex_collector->get_tablename('schedule_list'), [ 'hash' => $s->hash ], [ 'id' => $s->id ]);
 }
@@ -157,17 +155,15 @@ $tableName = $trustindex_collector->get_tablename('schedule_list');
 if (isset($_GET[ $trustindex_collector->get_response_key() ])) {
 // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 $hash = sanitize_text_field(wp_unslash($_GET[ $trustindex_collector->get_response_key() ]));
-// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
-$res = $wpdb->get_results($wpdb->prepare('SELECT * FROM %i WHERE hash LIKE %s LIMIT 1', $tableName, $hash), ARRAY_A);
+$schedule = $trustindex_collector->get_schedule_by_hash($hash);
 // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 $mode = isset($_GET['mode']) ? sanitize_text_field(wp_unslash($_GET['mode'])) : 'clicked';
-if (count($res) !== 1) {
+if ($schedule === null) {
 global $wp_query;
 $wp_query->set_404();
 status_header(404);
 exit;
 }
-$schedule = $res[0];
 $key = $mode . '_at';
 if (in_array($key, [ 'opened_at', 'clicked_at' ]) && empty($schedule[ $key ])) {
 $data = [];
@@ -192,15 +188,13 @@ exit;
 else if (isset($_GET[ $trustindex_collector->get_feedback_key() ])) {
 // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 if ($hash = sanitize_text_field(wp_unslash($_GET[ $trustindex_collector->get_feedback_key() ]))) {
-// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
-$res = $wpdb->get_results($wpdb->prepare('SELECT * FROM %i WHERE hash LIKE %s LIMIT 1', $tableName, $hash), ARRAY_A);
-if (count($res) != 1) {
+$schedule = $trustindex_collector->get_schedule_by_hash($hash);
+if ($schedule === null) {
 global $wp_query;
 $wp_query->set_404();
 status_header(404);
 exit;
 }
-$schedule = $res[0];
 $isTest = false;
 // phpcs:ignore WordPress.Security.NonceVerification.Missing
 if (isset($_POST['text'])) {
@@ -215,8 +209,8 @@ $message = "
 Hi,<br /><br />
 Instead of a negative rating, this message was written by one of your customers.<br />
 <strong>Please respond to your customer regarding the problem as soon as possible.</strong><br /><br />
-Name: <strong>". $schedule['name'] ."</strong><br />
-E-mail: <strong>". $schedule['email'] ."</strong><br />
+Name: <strong>". esc_html($schedule['name']) ."</strong><br />
+E-mail: <strong>". esc_html($schedule['email']) ."</strong><br />
 Message: <strong>$text</strong><br />";
 if ($schedule['order_id']) {
 $orderUrl = admin_url('post.php?post='. $schedule['order_id'] .'&action=edit');

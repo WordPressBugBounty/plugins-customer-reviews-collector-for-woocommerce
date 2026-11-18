@@ -503,7 +503,7 @@ if ($scheduleId) {
 // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 $wpdb->query($wpdb->prepare('UPDATE %i SET sent = 1 WHERE id = %d', $tableName, $scheduleId));
 } else {
-$date = gmdate('Y-m-d H:i:s');
+$hash = $this->generate_hash();
 // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 $wpdb->insert($tableName, [
 'email' => $email,
@@ -511,13 +511,15 @@ $wpdb->insert($tableName, [
 'order_id' => $orderId,
 'timestamp' => time(),
 'sent' => 1,
-'created_at' => $date
+'created_at' => gmdate('Y-m-d H:i:s'),
+'hash' => $hash
 ]);
-$hash = md5($wpdb->insert_id . '-' . $date);
-// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
-$wpdb->update($tableName, [ 'hash' => $hash ], [ 'id' => $wpdb->insert_id ]);
 }
 return $hash;
+}
+public function generate_hash()
+{
+return bin2hex(random_bytes(16));
 }
 public function get_pending_schedules()
 {
@@ -532,13 +534,14 @@ global $wpdb;
 require_once(ABSPATH . 'wp-admin' . DIRECTORY_SEPARATOR . 'includes' . DIRECTORY_SEPARATOR . 'upgrade.php');
 $tableName = $this->get_tablename('schedule_list');
 $limit = 10;
+$like = '%' . $wpdb->esc_like($query) . '%';
 // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
-$total = $wpdb->get_results($wpdb->prepare('SELECT COUNT(id) as num FROM %i WHERE email LIKE %s OR name like %s', $tableName, "%$query%", "%$query%"))[0]->num;
+$total = $wpdb->get_results($wpdb->prepare('SELECT COUNT(id) as num FROM %i WHERE email LIKE %s OR name like %s', $tableName, $like, $like))[0]->num;
 return (object) [
 'total' => $total,
 'maxNumPages' => ceil($total / $limit),
 // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
-'schedules' => $wpdb->get_results($wpdb->prepare('SELECT * FROM %i WHERE email LIKE %s OR name like %s ORDER BY `timestamp` LIMIT %d,%d', $tableName, "%$query%", "%$query%", ($page - 1) * $limit, $limit))
+'schedules' => $wpdb->get_results($wpdb->prepare('SELECT * FROM %i WHERE email LIKE %s OR name like %s ORDER BY `timestamp` LIMIT %d,%d', $tableName, $like, $like, ($page - 1) * $limit, $limit))
 ];
 }
 public function get_schedule($id)
@@ -551,12 +554,22 @@ return $res[0];
 }
 return null;
 }
+public function get_schedule_by_hash($hash)
+{
+global $wpdb;
+if (preg_match('/^[a-f0-9]{32}$/', $hash) !== 1) {
+return null;
+}
+// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+$res = $wpdb->get_results($wpdb->prepare('SELECT * FROM %i WHERE hash = %s LIMIT 1', $this->get_tablename('schedule_list'), $hash), ARRAY_A);
+return $res[0] ?? null;
+}
 public function isRequestExists($email, $orderId)
 {
 global $wpdb;
 $email = sanitize_email($email);
 // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
-$res = $wpdb->get_results($wpdb->prepare('SELECT id FROM %i WHERE order_id = %s AND email LIKE %s LIMIT 1', $this->get_tablename('schedule_list'), $orderId, $email));
+$res = $wpdb->get_results($wpdb->prepare('SELECT id FROM %i WHERE order_id = %s AND email = %s LIMIT 1', $this->get_tablename('schedule_list'), $orderId, $email));
 return count($res) === 1;
 }
 
@@ -566,7 +579,7 @@ public function is_email_unsubscribed($email)
 global $wpdb;
 $email = sanitize_email($email);
 // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
-$res = $wpdb->get_results($wpdb->prepare('SELECT id FROM %i WHERE email LIKE %s LIMIT 1', $this->get_tablename('unsubscribes'), $email));
+$res = $wpdb->get_results($wpdb->prepare('SELECT id FROM %i WHERE email = %s LIMIT 1', $this->get_tablename('unsubscribes'), $email));
 return count($res) === 1;
 }
 public function unsubscribe()
@@ -603,13 +616,14 @@ require_once(ABSPATH . 'wp-admin' . DIRECTORY_SEPARATOR . 'includes' . DIRECTORY
 global $wpdb;
 $tableName = $this->get_tablename('unsubscribes');
 $limit = 10;
+$like = '%' . $wpdb->esc_like($query) . '%';
 // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
-$total = $wpdb->get_results($wpdb->prepare('SELECT COUNT(id) as num FROM %i WHERE email LIKE %s', $tableName, "%$query%"))[0]->num;
+$total = $wpdb->get_results($wpdb->prepare('SELECT COUNT(id) as num FROM %i WHERE email LIKE %s', $tableName, $like))[0]->num;
 return (object) [
 'total' => $total,
 'maxNumPages' => ceil($total / $limit),
 // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
-'unsubscribes' => $wpdb->get_results($wpdb->prepare('SELECT * FROM %i WHERE email LIKE %s ORDER BY `created_at` DESC LIMIT %d,%d', $tableName, "%$query%", ($page - 1) * $limit, $limit))
+'unsubscribes' => $wpdb->get_results($wpdb->prepare('SELECT * FROM %i WHERE email LIKE %s ORDER BY `created_at` DESC LIMIT %d,%d', $tableName, $like, ($page - 1) * $limit, $limit))
 ];
 }
 }
